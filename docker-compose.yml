@@ -102,7 +102,7 @@ services:
         condition: service_healthy
       mitmproxy:
         condition: service_started
-    image: mattermost/mattermost-enterprise-edition:10.7
+    image: mattermost/mattermost-enterprise-edition:10.10
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -141,20 +141,70 @@ services:
 
       ## Disable this to migrate your config to the database
   #      - MM_CONFIG=postgres://mmuser:mmuser_password@cs-repro-postgres:5432/mattermost?sslmode=disable&connect_timeout=10&binary_parameters=yes
+  keycloak-postgres:
+    container_name: cs-repro-keycloak-postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak_password_change_me
+    volumes:
+      - ./volumes/keycloak-postgres-data:/var/lib/postgresql/data
+    networks:
+      - default
+      - keycloak-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   keycloak:
     container_name: cs-repro-keycloak
+    image: quay.io/keycloak/keycloak:26.4
     restart: unless-stopped
-    image: quay.io/keycloak/keycloak:18.0
-    volumes:
-      - ./volumes/keycloak:/opt/keycloak/data:rw
+    command: start
     environment:
-      - PROXY_ADDRESS_FORWARDING="true"
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      # Database
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_password_change_me
+
+      # Admin credentials
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+      # Hostname
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HOSTNAME_STRICT_BACKCHANNEL: false
+
+      # HTTP
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+
+      # Disable HTTPS requirement for local development
+      KC_HTTP_RELATIVE_PATH: /
+
+      # Proxy (if behind reverse proxy)
+      # KC_PROXY: edge
     ports:
-      - 8080:8080
-    command:
-      - start-dev
+      - "8080:8080"
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - keycloak-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\\r\\nhost: http://localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
   elasticsearch:
     image: elasticsearch:7.17.10
     container_name: cs-repro-elasticsearch
@@ -235,7 +285,7 @@ services:
         condition: service_healthy
       mitmproxy:
         condition: service_started
-    image: mattermost/mattermost-enterprise-edition:10.7
+    image: mattermost/mattermost-enterprise-edition:10.10
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -318,4 +368,8 @@ services:
 #     # Where our data will be persisted
 #   volumes:
 #     - ./volumes/db/mysql:/var/lib/mysql
+
+networks:
+  keycloak-network:
+    driver: bridge
 
