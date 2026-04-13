@@ -132,7 +132,7 @@ services:
       - MM_SAMLSETTINGS_IDPCERTIFICATEFILE=/mattermost/config/saml-cert.crt
       - MM_ServiceSettings_EnableLocalMode=true
       - MM_ServiceSettings_LocalModeSocketLocation=/var/tmp/mattermost_local.socket
-      - MM_ServiceSettings_LicenseFileLocation=/mattermost/config/license.mattermost-enterprise
+      - MM_ServiceSettings_LicenseFileLocation=/mattermost/config/license.mattermost
       - MM_LogSettings_Directory=
 
       ## mysql Settings
@@ -319,7 +319,7 @@ services:
       - MM_SAMLSETTINGS_IDPCERTIFICATEFILE=/mattermost/config/saml-cert.crt
       - MM_ServiceSettings_EnableLocalMode=true
       - MM_ServiceSettings_LocalModeSocketLocation=/var/tmp/mattermost_local.socket
-      - MM_ServiceSettings_LicenseFileLocation=/mattermost/config/license.mattermost-enterprise
+      - MM_ServiceSettings_LicenseFileLocation=/mattermost/config/license.mattermost
       - MM_LogSettings_Directory=/mattermost/logs
   mattermost-rtcd:
     container_name: cs-repro-mattermost-rtcd
